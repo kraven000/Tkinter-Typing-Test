@@ -1,20 +1,15 @@
-from tkinter import Tk,Text,Label,WORD,INSERT,DISABLED
+from tkinter import Tk,Text,Label,WORD,INSERT,DISABLED,IntVar,Radiobutton,END, OptionMenu, StringVar
+from json import load
+import sys
+import tkinter.messagebox as msgb
 from threading import Thread
-from wonderwords import RandomSentence
+from wonderwords import RandomWord
 from time import sleep
 
 
-def generate_random_para() -> str:        
-    formated_para = []
-    for i in range(16):
-        if len(formated_para)==0:
-            formated_para.append(RandomSentence().sentence())
-        else:
-            formated_para.append(" ")
-            formated_para.append(RandomSentence().sentence())
-            
-    else:
-        return "".join(formated_para)
+def generate_random_para(n:int) -> str:
+    paragraph = RandomWord().random_words(n)
+    return " ".join(paragraph)
 
 
 def time_taken(entry_widget:Text, paragraph:str, show_wpm_accuracy:Label) -> None:
@@ -41,9 +36,9 @@ def time_taken(entry_widget:Text, paragraph:str, show_wpm_accuracy:Label) -> Non
         
 
 
-def start_timer(entry_widget:Text, paragraph:str, root:Tk, show_time:Label,
-                show_wpm_accuracy:Label):
-    timmee = 16
+def timer(entry_widget:Text, paragraph:str, root:Tk, show_time:Label,
+                show_wpm_accuracy:Label, time_sec:IntVar) -> None:
+    timmee = time_sec.get()
     while 0<timmee:
         timmee -= 1
         show_time.config(text=f"{timmee}")
@@ -53,44 +48,104 @@ def start_timer(entry_widget:Text, paragraph:str, root:Tk, show_time:Label,
         time_taken(entry_widget=entry_widget, show_wpm_accuracy=show_wpm_accuracy, paragraph=paragraph)
 
 
-def start_io(entry_widget:Text, paragraph:str, root:Tk, show_time:Label,
-            show_wpm_accuracy:Label, events=None):
-    entry_widget.unbind("<KeyPress>")
+def start_time(entry_widget:Text, paragraph:str, root:Tk, show_time:Label,
+            show_wpm_accuracy:Label, text_widget:Text, time_sec:IntVar, events=None) -> None:
     
-    a = Thread(target=start_timer,args=(entry_widget, paragraph, root, show_time, show_wpm_accuracy))
-    a.start()
+    a = Thread(target=timer,args=(entry_widget, paragraph, root, show_time, show_wpm_accuracy, time_sec))
+    
+    if time_sec.get() in {15,30,45,60}:
+        entry_widget.delete("1.0",END)
+        entry_widget.unbind("<KeyPress>")
+        
+        a.start()
+    else:
+        entry_widget.delete("1.0",END)
+        msgb.showerror(title="Time Not Selected",message="Please Select Time!")
 
 
+def theme(master:Tk, theme:dict, text_widget:Text, events=None):
+    master.configure(bg=theme["bg"])
+    text_widget.config(bg=theme["bg"],fg=theme["fg"])
+    # entry_widget.config(bg=theme["bg"])
+    
+    
 def gui() -> None:
     root:Tk = Tk()
-    root.configure(bg="#161616")
-    root.resizable(False,False)
-    paragraph = generate_random_para()
+    root.resizable(False,False)    
+    root.geometry("1200x650")
     
+    time_sec = IntVar()
+    time_sec.set(15)
+    checkbutton1:Radiobutton = Radiobutton(root, text="15", variable=time_sec, bg="#212135", fg="#FAEFEF",
+                               relief="raised", selectcolor="#000000", width=3, height=2,
+                               value=15)
+
+    checkbutton2:Radiobutton = Radiobutton(root, text="30", variable=time_sec, bg="#212135", fg="#FAEFEF",
+                               relief="raised", selectcolor="#000000", width=3, height=2,
+                               value=30)
+
+    checkbutton3:Radiobutton = Radiobutton(root, text="45", variable=time_sec, bg="#212135", fg="#FAEFEF",
+                               relief="raised", selectcolor="#000000", width=3, height=2,
+                               value=45)
+
+    checkbutton4:Radiobutton = Radiobutton(root, text="60", variable=time_sec, bg="#212135", fg="#FAEFEF",
+                               relief="raised", selectcolor="#000000", width=3, height=2,
+                               value=60)
+
+    
+    checkbutton1.place(x=400,y=0)
+    checkbutton2.place(x=480,y=0)
+    checkbutton3.place(x=560,y=0)
+    checkbutton4.place(x=640,y=0)
+    
+    theme_set = StringVar()
+    
+    with open("themes.json") as file:
+        theme_with_hexcolor:dict = load(file)
+        list_theme_with_hexcolor:list = list(theme_with_hexcolor)
+        list_theme_with_hexcolor.sort()
+    
+    theme_set.set(list_theme_with_hexcolor[0])
+    themes = OptionMenu(root,theme_set,*list_theme_with_hexcolor)
+    themes.place(x=1000,y=0)
+    
+    defaut_theme = theme_with_hexcolor["default"]
+    root.configure(bg=defaut_theme["bg"])
+    
+    paragraph = generate_random_para(170)
     # paragraph = "My Name is Akhilesh Verma"
-    root.geometry("1150x450")
-    text_widget:Text = Text(root, wrap=WORD, font="Consolas 14 bold", bg="#161616", fg="#c0c0c0")
+    
+    text_widget:Text = Text(root, wrap=WORD, font="Consolas 14 bold", bg=defaut_theme["bg"],
+                            fg=defaut_theme["fg"])
     text_widget.insert(INSERT, paragraph)
     text_widget.config(state=DISABLED)  # Make the text widget read-only
-    text_widget.place(x=1, y=1, relwidth=1,relheight=0.4)
+    text_widget.place(x=0, y=30, relwidth=1,relheight=0.44)
     
     
-    entry_widget:Text = Text(root,wrap=WORD,font="Roboto 14 bold",fg="#0E7534")
-    entry_widget.place(x=1,y=150,relheight=0.32,relwidth=1)
+    entry_widget:Text = Text(root,wrap=WORD,font="Roboto 14 bold",fg=defaut_theme["writefg"])
+    entry_widget.place(x=1,y=325,relheight=0.3,relwidth=1)
     
-    show_time = Label(root,text="30",fg="#F70B0B",bg="#161616",font="Roboto 20 bold")
+    show_time = Label(root,text="",fg="#F70B0B",bg="#323437",font="Roboto 20 bold")
     show_time.place(x=1,y=300)
     
-    entry_widget.bind("<KeyPress>",lambda event: start_io(entry_widget=entry_widget, paragraph=paragraph,
+    
+    start_time_func = lambda event: start_time(entry_widget=entry_widget, paragraph=paragraph,
                                                        root=root, show_time=show_time,
-                                                       show_wpm_accuracy=show_wpm_accuracy
-                                                       ))    
+                                                       show_wpm_accuracy=show_wpm_accuracy,
+                                                       text_widget=text_widget, time_sec=time_sec)
+    
+    entry_widget.bind("<KeyPress>",start_time_func)    
+    
+    theme_set.trace_add("write",lambda *event:theme(master=root,theme=theme_with_hexcolor[theme_set.get()],
+                                                   text_widget=text_widget))
     
     # entry
-    show_wpm_accuracy = Label(root,text="rt",bg="#161616",fg="#C0C0C0",font="Aerial 14 bold")
+    show_wpm_accuracy = Label(root,text="",bg="#323437",fg="#C0C0C0",font="Aerial 14 bold")
     show_wpm_accuracy.place(x=0,y=350)
+    
+    
     root.mainloop()
 
 
-
-gui()
+if __name__=="__main__":
+    gui()
